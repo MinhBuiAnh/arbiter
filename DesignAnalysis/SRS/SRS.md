@@ -2,7 +2,7 @@
 
 **Arbiter - Online Judge Platform**
 
-**Version:** 1.1 – Draft  
+**Version:** 1.1 – Draft
 **Project Type:** Capstone Project  
 **System Architecture:** Modular Monolith with Asynchronous Judge Workers  
 **Technology Stack:** React, TypeScript, Go, PostgreSQL, Redis Streams, Docker
