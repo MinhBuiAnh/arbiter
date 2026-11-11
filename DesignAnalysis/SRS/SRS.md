@@ -2,7 +2,7 @@
 
 **Arbiter - Online Judge Platform**
 
-**Version:** 1.0 – Draft  
+**Version:** 1.1 – Draft  
 **Project Type:** Capstone Project  
 **System Architecture:** Modular Monolith with Asynchronous Judge Workers  
 **Technology Stack:** React, TypeScript, Go, PostgreSQL, Redis Streams, Docker
@@ -52,19 +52,19 @@ The main technologies are:
 
 ## 1.3 Definitions and Abbreviations
 
-| Term | Definition |
-|---|---|
-| Online Judge (OJ) | A system that automatically evaluates submitted programming solutions. |
-| Submission | Source code submitted by a user for evaluation. |
-| Judge Worker | A background process responsible for compiling and executing submissions. |
-| Test Case | A predefined input and expected output used to evaluate a program. |
-| Sample Test Case | A test case publicly displayed to users. |
-| Hidden Test Case | A test case whose input and expected output are not exposed to users. |
-| Verdict | The final evaluation outcome of a submission. |
-| Sandbox | An isolated execution environment for running untrusted source code. |
-| MVP | Minimum Viable Product. |
-| API | Application Programming Interface. |
-| SRS | Software Requirements Specification. |
+| Term              | Definition                                                                |
+|-------------------|---------------------------------------------------------------------------|
+| Online Judge (OJ) | A system that automatically evaluates submitted programming solutions.    |
+| Submission        | Source code submitted by a user for evaluation.                           |
+| Judge Worker      | A background process responsible for compiling and executing submissions. |
+| Test Case         | A predefined input and expected output used to evaluate a program.        |
+| Sample Test Case  | A test case publicly displayed to users.                                  |
+| Hidden Test Case  | A test case whose input and expected output are not exposed to users.     |
+| Verdict           | The final evaluation outcome of a submission.                             |
+| Sandbox           | An isolated execution environment for running untrusted source code.      |
+| MVP               | Minimum Viable Product.                                                   |
+| API               | Application Programming Interface.                                        |
+| SRS               | Software Requirements Specification.                                      |
 
 ## 1.4 References
 
@@ -449,34 +449,37 @@ Non-functional requirements define the quality attributes and operational constr
 
 ## 6.1 Actors
 
-The system contains four primary actors.
+The system contains three primary actors. Judge System is an internal component of the system, so it isn't listed in the actor list.
 
-| Actor         | Type   | Description                                                            |
-|---------------|--------|------------------------------------------------------------------------|
-| Guest         | Human  | A visitor who has not logged in.                                       |
-| User          | Human  | An authenticated user who practices programming and submits solutions. |
-| Administrator | Human  | A privileged user who manages platform content and accounts.           |
-| Judge System  | System | An automated component that processes and evaluates submissions.       |
+| Actor ID | Actor         | Type              | Description                                                            |
+|----------|---------------|-------------------|------------------------------------------------------------------------|
+| ACT-01   | Guest         | Primary Actor     | A visitor who has not logged in.                                       |
+| ACT-02   | User          | Primary Actor     | An authenticated user who practices programming and submits solutions. |
+| ACT-03   | Administrator | Specialized Actor | A privileged user who manages platform content and accounts.           |
 
 ## 6.2 Actor Generalization
 
-The User actor may be modeled as a specialized form of Guest in the use case diagram if the diagram represents common public browsing behavior.
+The User and Administrator actors may be modeled as a specialized form of Authenticated User, an abstract type of User in the use case diagram to represent common login-required browsing behavior.
 
 Administrator may be modeled as a specialized form of User if administrative accounts share the ordinary account and authentication capabilities.
 
-Judge System remains a separate system actor and is not part of the human-user hierarchy.
+The Guest actor does not inherit Authenticated User and can access common public browsing behaviors.
+
+Judge System is a separate internal system component and is not part of the human-user hierarchy.
 
 ## 6.3 Use Case Groups
 
 ### Group A – Guest
 
-| ID      | Use Case             | Description                                               |
-|---------|----------------------|-----------------------------------------------------------|
-| UC-G-01 | Browse Problems      | View the list of publicly available programming problems. |
-| UC-G-02 | Search Problems      | Search for problems using supported criteria.             |
-| UC-G-03 | View Problem Details | View a problem's description and sample test cases.       |
-| UC-G-04 | Register Account     | Create a new user account.                                |
-| UC-G-05 | Log In               | Authenticate using an existing account.                   |
+| ID        | Use Case             | Description                                               |
+|-----------|----------------------|-----------------------------------------------------------|
+| UC-COM-01 | Browse Problems      | View the list of publicly available programming problems. |
+| UC-COM-02 | Search Problems      | Search for problems using supported criteria.             |
+| UC-COM-03 | View Problem Details | View a problem's description and sample test cases.       |
+| UC-G-01   | Register Account     | Create a new user account.                                |
+| UC-G-02   | Log In               | Authenticate using an existing account.                   |
+
+Three use cases UC-COM-01 to UC-COM-03 are common features used by both Guest and User.
 
 ### Group B – User
 
@@ -492,12 +495,9 @@ Judge System remains a separate system actor and is not part of the human-user h
 
 | ID        | Use Case                    | Description                                              |
 |-----------|-----------------------------|----------------------------------------------------------|
-| UC-U-P-01 | Browse Problems             | Browse publicly available programming problems.          |
-| UC-U-P-02 | Search Problems             | Search for programming problems.                         |
-| UC-U-P-03 | View Problem Details        | View the description and sample test cases of a problem. |
-| UC-U-P-04 | Write Solution              | Write and edit source code using Monaco Editor.          |
-| UC-U-P-05 | Select Programming Language | Select C++17, Python 3, or Go.                           |
-| UC-U-P-06 | Submit Solution             | Submit source code for automated evaluation.             |
+| UC-U-P-01 | Write Solution              | Write and edit source code using Monaco Editor.          |
+| UC-U-P-02 | Select Programming Language | Select C++17, Python 3, or Go.                           |
+| UC-U-P-03 | Submit Solution             | Submit source code for automated evaluation.             |
 
 #### B.3 Submission and History
 
@@ -536,20 +536,22 @@ Judge System remains a separate system actor and is not part of the human-user h
 | UC-AD-U-02 | View User Details  | View permitted information about a selected user. |
 | UC-AD-U-03 | Manage User Status | Change a user's account status where authorized.  |
 
-### Group D – Judge System
+## 6.4 Internal System Processes - Judge System
 
-| ID      | Use Case                  | Description                                                                           |
-|---------|---------------------------|---------------------------------------------------------------------------------------|
-| UC-J-01 | Receive Submission Job    | Receive a submission job from Redis Streams.                                          |
-| UC-J-02 | Retrieve Submission Data  | Retrieve the submission, problem, and test-case data required for evaluation.         |
-| UC-J-03 | Compile Source Code       | Compile source code when required by the selected language.                           |
-| UC-J-04 | Execute Test Case         | Execute the submitted program against an individual test case in an isolated sandbox. |
-| UC-J-05 | Evaluate Test Case        | Compare the actual output with the expected output and evaluate execution limits.     |
-| UC-J-06 | Determine Final Verdict   | Determine the final result based on compilation and test-case evaluation.             |
-| UC-J-07 | Persist Submission Result | Save submission status, verdict, and evaluation details in PostgreSQL.                |
-| UC-J-08 | Recover Pending Job       | Recover and safely reprocess a job abandoned by a failed worker.                      |
+Since Judge System is an internal system component, we won't list its features as use cases. However, these are still listed here as they are an integral part of Arbiter.
 
-## 6.4 Use Case Modeling Notes
+| ID        | Use Case                  | Description                                                                          |
+|-----------|---------------------------|--------------------------------------------------------------------------------------|
+| PROC-J-01 | Receive Submission Job    | Receive a submission job from Redis Streams.                                         |
+| PROC-J-02 | Retrieve Submission Data  | Retrieve the submission, problem, and test-case data required for evaluation.        |
+| PROC-J-03 | Compile Source Code       | Compile source code when required by the selected language.                          |
+| PROC-J-04 | Execute Test Case         | Execute the submitted program against an individual test case in an isolated sandbox.|
+| PROC-J-05 | Evaluate Test Case        | Compare the actual output with the expected output and evaluate execution limits.    |
+| PROC-J-06 | Determine Final Verdict   | Determine the final result based on compilation and test-case evaluation.            |
+| PROC-J-07 | Persist Submission Result | Save submission status, verdict, and evaluation details in PostgreSQL.               |
+| PROC-J-08 | Recover Pending Job       | Recover and safely reprocess a job abandoned by a failed worker.                     |
+
+## 6.5 Use Case Modeling Notes
 
 1. Guest and User share public problem-browsing capabilities. These common use cases should not be duplicated unnecessarily in detailed specifications.
 2. The User actor inherits the capabilities of Guest after successful authentication.
