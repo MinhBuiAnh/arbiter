@@ -1,15 +1,15 @@
 # Use Case Specification
 
-**UC-A-02 - View Account Information**
+**UC-U-A-02 - View Account Information**
 
 **Version:** 1.0
 
 # 1. General Information
 
-- Use Case ID: UC-A-02
+- Use Case ID: UC-U-A-02
 - Use Case Name: View Account Information
 - Brief Description: Allow User to view registered personal account information in the system, including identifiable information and other displayed profile information.
-- Participating Actors: User, Administrator (can also use this feature through User inheritance).
+- Participating Actors: User, Administrator (can also use this feature through inheritance from User).
 
 # 2. Preconditions
 

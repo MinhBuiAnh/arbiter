@@ -1,15 +1,15 @@
 # Use Case Specification
 
-**UC-A-01 - Log Out**
+**UC-U-A-01 - Log Out**
 
 **Version:** 1.0
 
 # 1. General Information
 
-- Use Case ID: UC-A-01
+- Use Case ID: UC-U-A-01
 - Use Case Name: Log Out
 - Brief Description: Allow User to end the current session. System revokes corresponding Refresh Token and frontend deletes stored validation data.
-- Participating Actors: User, Administrator (can also use this feature through User inheritance).
+- Participating Actors: User, Administrator (can also use this feature through inheritance from User).
 
 # 2. Preconditions
 

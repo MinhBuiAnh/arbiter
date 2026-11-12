@@ -1,15 +1,15 @@
 # Use Case Specification
 
-**UC-A-03 - Update Account Information**
+**UC-U-A-03 - Update Account Information**
 
 **Version:** 1.0
 
 # 1. General Information
 
-- Use Case ID: UC-A-03
+- Use Case ID: UC-U-A-03
 - Use Case Name: Update Account Information
 - Brief Description: Allow User to edit and update supported personal profile information, such as Display Name and Avatar.
-- Participating Actors: User, Administrator (can also use this feature through User inheritance).
+- Participating Actors: User, Administrator (can also use this feature through inheritance from User).
 
 # 2. Preconditions
 
