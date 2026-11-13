@@ -35,7 +35,7 @@ Suggest using error codes in this form:
 
 ERR-[CATEGORY]-[NUMBER]
 
-Trong đó:
+Including:
 
 - ERR: Error.
 - CATEGORY: Error category.

@@ -117,15 +117,15 @@
 
 **E5 – ERR-SYS-001: Internal System Error**
 
-1. System encounters an error while processing the request.  
-2. Returns ERR-SYS-001 – Internal System Error.  
-3. UI displays an error message.  
+1. System encounters an error while processing the request.
+2. Returns ERR-SYS-001 – Internal System Error.
+3. UI displays an error message.
 
 **E6 – ERR-NET-001: Network Error**
 
-1. UI cannot connect to System or the request timed out.  
-2. Identified as ERR-NET-001 – Network Error.  
-3. UI allows the User to try again.  
+1. UI cannot connect to System or the request timed out.
+2. Identified as ERR-NET-001 – Network Error.
+3. UI allows the User to try again.
 
 **E7 – ERR-LIMIT-001: Rate Limit Exceeded**
 

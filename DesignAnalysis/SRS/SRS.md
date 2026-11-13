@@ -516,7 +516,7 @@ Three use cases UC-COM-01 to UC-COM-03 are common features used by both Guest an
 |------------|------------------------------|-----------------------------------------------------------|
 | UC-AD-P-01 | Create Problem               | Create a new programming problem.                         |
 | UC-AD-P-02 | Update Problem               | Modify an existing programming problem.                   |
-| UC-AD-P-03 | Delete or Deactivate Problem | Remove a problem or make it unavailable.                  |
+| UC-AD-P-03 | Delete Problem               | Make a problem unavailable.                               |
 | UC-AD-P-04 | Manage Problem Publication   | Change the publication or visibility status of a problem. |
 
 #### C.2 Test Case Management
