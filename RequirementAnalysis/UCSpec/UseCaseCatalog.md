@@ -162,88 +162,123 @@ Administrator inherits User use cases. Where a use case lists "User, Administrat
 
 ## 6. Use Case Diagram
 
-```mermaid
-flowchart LR
-    Guest([Guest])
-    User([User])
-    Admin([Administrator])
-    Worker([Judge Worker])
+```plantuml
+@startuml
+left to right direction
 
-    subgraph Public["Guest / Common"]
-        COM01([UC-COM-01<br/>Browse Problems])
-        COM02([UC-COM-02<br/>Search Problems])
-        COM03([UC-COM-03<br/>View Problem Details])
-        COM04([UC-COM-04<br/>View Leaderboard])
-        G01([UC-G-01<br/>Register Account])
-        G02([UC-G-02<br/>Log In])
-    end
+actor Guest
+actor User
+actor Administrator as Admin
+actor "Judge Worker" as Worker
 
-    subgraph Account["User — Account"]
-        UA01([UC-U-A-01<br/>Log Out])
-        UA02([UC-U-A-02<br/>View Account Information])
-        UA03([UC-U-A-03<br/>Update Account Information])
-        UA04([UC-U-A-04<br/>Change Password])
-    end
+Admin --|> User
 
-    subgraph Practice["User — Practice and Results"]
-        UP01([UC-U-P-01<br/>Write Solution])
-        UP02([UC-U-P-02<br/>Select Language])
-        UP03([UC-U-P-03<br/>Submit Solution])
-        US01([UC-U-S-01<br/>View Submission Status])
-        US02([UC-U-S-02<br/>View Submission Result])
-        US03([UC-U-S-03<br/>View Submission History])
-        US04([UC-U-S-04<br/>View Submission Details])
-        UST01([UC-U-ST-01<br/>View Own Statistics])
-    end
+rectangle "Arbiter" {
+    package "Guest / Common" {
+        usecase "UC-COM-01\nBrowse Problems" as UC_COM_01
+        usecase "UC-COM-02\nSearch Problems" as UC_COM_02
+        usecase "UC-COM-03\nView Problem Details" as UC_COM_03
+        usecase "UC-COM-04\nView Leaderboard" as UC_COM_04
+        usecase "UC-G-01\nRegister Account" as UC_G_01
+        usecase "UC-G-02\nLog In" as UC_G_02
+    }
 
-    subgraph Administration["Administrator"]
-        ADP01([UC-AD-P-01..04<br/>Manage Problems])
-        ADT01([UC-AD-T-01..05<br/>Manage Test Cases])
-        ADU01([UC-AD-U-01..03<br/>Manage Users])
-        ADS01([UC-AD-S-01<br/>View Any Submission])
-    end
+    package "User / Account" {
+        usecase "UC-U-A-01\nLog Out" as UC_U_A_01
+        usecase "UC-U-A-02\nView Account Information" as UC_U_A_02
+        usecase "UC-U-A-03\nUpdate Account Information" as UC_U_A_03
+        usecase "UC-U-A-04\nChange Password" as UC_U_A_04
+    }
 
-    subgraph Judge["Judge Worker"]
-        SYS01([UC-SYS-J-01<br/>Process Submission])
-        SYS02([UC-SYS-J-02<br/>Recover Pending Submission])
-    end
+    package "User / Practice and Results" {
+        usecase "UC-U-P-01\nWrite Solution" as UC_U_P_01
+        usecase "UC-U-P-02\nSelect Programming Language" as UC_U_P_02
+        usecase "UC-U-P-03\nSubmit Solution" as UC_U_P_03
+        usecase "UC-U-S-01\nView Submission Status" as UC_U_S_01
+        usecase "UC-U-S-02\nView Submission Result" as UC_U_S_02
+        usecase "UC-U-S-03\nView Submission History" as UC_U_S_03
+        usecase "UC-U-S-04\nView Submission Details" as UC_U_S_04
+        usecase "UC-U-ST-01\nView Own Statistics" as UC_U_ST_01
+    }
 
-    Guest --> COM01
-    Guest --> COM02
-    Guest --> COM03
-    Guest --> COM04
-    Guest --> G01
-    Guest --> G02
+    package "Administrator / Problem Management" {
+        usecase "UC-AD-P-01\nCreate Problem" as UC_AD_P_01
+        usecase "UC-AD-P-02\nUpdate Problem" as UC_AD_P_02
+        usecase "UC-AD-P-03\nDelete / Deactivate Problem" as UC_AD_P_03
+        usecase "UC-AD-P-04\nManage Problem Publication" as UC_AD_P_04
+    }
 
-    User --> COM01
-    User --> COM02
-    User --> COM03
-    User --> COM04
-    User --> UA01
-    User --> UA02
-    User --> UA03
-    User --> UA04
-    User --> UP01
-    User --> UP02
-    User --> UP03
-    User --> US01
-    User --> US02
-    User --> US03
-    User --> US04
-    User --> UST01
+    package "Administrator / Test Case Management" {
+        usecase "UC-AD-T-01\nCreate Test Case" as UC_AD_T_01
+        usecase "UC-AD-T-02\nUpdate Test Case" as UC_AD_T_02
+        usecase "UC-AD-T-03\nDelete Test Case" as UC_AD_T_03
+        usecase "UC-AD-T-04\nManage Test Case Type" as UC_AD_T_04
+        usecase "UC-AD-T-05\nReorder Test Cases" as UC_AD_T_05
+    }
 
-    Admin --> ADP01
-    Admin --> ADT01
-    Admin --> ADU01
-    Admin --> ADS01
+    package "Administrator / User Management" {
+        usecase "UC-AD-U-01\nView User List" as UC_AD_U_01
+        usecase "UC-AD-U-02\nView User Details" as UC_AD_U_02
+        usecase "UC-AD-U-03\nManage User Status" as UC_AD_U_03
+    }
 
-    Worker --> SYS01
-    Worker --> SYS02
+    package "Administrator / Submission Management" {
+        usecase "UC-AD-S-01\nView Any Submission" as UC_AD_S_01
+    }
 
-    UP03 -.->|outbox event| SYS01
-    SYS02 -.->|reclaims| SYS01
-    COM02 -.->|extends| COM01
-    COM03 -.->|selected from| COM01
+    package "Judge Worker" {
+        usecase "UC-SYS-J-01\nProcess Submission" as UC_SYS_J_01
+        usecase "UC-SYS-J-02\nRecover Pending Submission" as UC_SYS_J_02
+    }
+}
+
+Guest --> UC_COM_01
+Guest --> UC_COM_02
+Guest --> UC_COM_03
+Guest --> UC_COM_04
+Guest --> UC_G_01
+Guest --> UC_G_02
+
+User --> UC_COM_01
+User --> UC_COM_02
+User --> UC_COM_03
+User --> UC_COM_04
+User --> UC_U_A_01
+User --> UC_U_A_02
+User --> UC_U_A_03
+User --> UC_U_A_04
+User --> UC_U_P_01
+User --> UC_U_P_02
+User --> UC_U_P_03
+User --> UC_U_S_01
+User --> UC_U_S_02
+User --> UC_U_S_03
+User --> UC_U_S_04
+User --> UC_U_ST_01
+
+Admin --> UC_AD_P_01
+Admin --> UC_AD_P_02
+Admin --> UC_AD_P_03
+Admin --> UC_AD_P_04
+Admin --> UC_AD_T_01
+Admin --> UC_AD_T_02
+Admin --> UC_AD_T_03
+Admin --> UC_AD_T_04
+Admin --> UC_AD_T_05
+Admin --> UC_AD_U_01
+Admin --> UC_AD_U_02
+Admin --> UC_AD_U_03
+Admin --> UC_AD_S_01
+
+Worker --> UC_SYS_J_01
+Worker --> UC_SYS_J_02
+
+UC_U_P_03 ..> UC_SYS_J_01 : outbox event
+UC_SYS_J_02 ..> UC_SYS_J_01 : reclaims
+UC_COM_02 ..> UC_COM_01 : <<extend>>
+UC_COM_03 ..> UC_COM_01 : selected from
+UC_COM_03 ..> UC_COM_02 : selected from
+@enduml
 ```
 
 ---

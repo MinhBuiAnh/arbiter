@@ -2,7 +2,7 @@
 
 **Status:** Agreed baseline (v1.0)
 **Date:** 2026-11-13
-**Based on:** [`ProjectProposal.md`](./ProjectProposal.md) and the SRS draft (`DesignAnalysis/SRS/SRS.md`, v1.1)
+**Based on:** [`ProjectProposal.md`](./ProjectProposal.md)
 **Effort budget:** 60–80 hours (planned: 77 h)
 **Change control:** This document is the source of truth for v1. Anything not listed in §5 is out of scope until explicitly traded in.
 
