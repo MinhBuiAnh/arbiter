@@ -1333,7 +1333,7 @@ TCTestCaseService --> TCTestCaseRepository
 TCTestCaseService --> TCTestCaseStore
 TCTestCaseService --> TCProblemLookup
 
-TCTestCaseSet "1" *-- "1..*" TCTestCase
+TCTestCaseSet "1" *-- "0..*" TCTestCase
 TCTestCaseMetadata *-- "1" TCTestCaseFileRefs
 
 TCTestCaseRepository ..> TCTestCase
