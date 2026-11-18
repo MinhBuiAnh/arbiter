@@ -208,44 +208,44 @@ The [design class diagram](../DesignClassDiagram/DesignClassDiagram.md) is the a
 
 | Classifier | Kind | Specification |
 |---|---|---|
-| `AccountPostgresStore` | Class | [AccountPostgresStore](PersistenceSubsystem/AccountPostgresStore.md) |
-| `ProblemPostgresStore` | Class | [ProblemPostgresStore](PersistenceSubsystem/ProblemPostgresStore.md) |
-| `TestCasePostgresRepository` | Class | [TestCasePostgresRepository](PersistenceSubsystem/TestCasePostgresRepository.md) |
-| `SubmissionPostgresStore` | Class | [SubmissionPostgresStore](PersistenceSubsystem/SubmissionPostgresStore.md) |
-| `ProgressPostgresStore` | Class | [ProgressPostgresStore](PersistenceSubsystem/ProgressPostgresStore.md) |
-| `OutboxPostgresStore` | Class | [OutboxPostgresStore](PersistenceSubsystem/OutboxPostgresStore.md) |
+| `AccountPostgresStore` | Class | [AccountPostgresStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/AccountPostgresStore.md) |
+| `ProblemPostgresStore` | Class | [ProblemPostgresStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/ProblemPostgresStore.md) |
+| `TestCasePostgresRepository` | Class | [TestCasePostgresRepository](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/TestCasePostgresRepository.md) |
+| `SubmissionPostgresStore` | Class | [SubmissionPostgresStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/SubmissionPostgresStore.md) |
+| `ProgressPostgresStore` | Class | [ProgressPostgresStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/ProgressPostgresStore.md) |
+| `OutboxPostgresStore` | Class | [OutboxPostgresStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/PersistenceSubsystem/OutboxPostgresStore.md) |
 
 ## Message Queue Subsystem (Go)
 
 | Classifier | Kind | Specification |
 |---|---|---|
-| `SubmissionQueue` | Interface | [SubmissionQueue](MessageQueueSubsystem/SubmissionQueue.md) |
-| `QueueMessage` | Class | [QueueMessage](MessageQueueSubsystem/QueueMessage.md) |
-| `RedisStreamQueue` | Class | [RedisStreamQueue](MessageQueueSubsystem/RedisStreamQueue.md) |
+| `SubmissionQueue` | Interface | [SubmissionQueue](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/MessageQueueSubsystem/SubmissionQueue.md) |
+| `QueueMessage` | Class | [QueueMessage](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/MessageQueueSubsystem/QueueMessage.md) |
+| `RedisStreamQueue` | Class | [RedisStreamQueue](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/MessageQueueSubsystem/RedisStreamQueue.md) |
 
 ## Execution Subsystem (Go)
 
 | Classifier | Kind | Specification |
 |---|---|---|
-| `ExecutionEnvironment` | Interface | [ExecutionEnvironment](ExecutionSubsystem/ExecutionEnvironment.md) |
-| `CompileRequest` | Class | [CompileRequest](ExecutionSubsystem/CompileRequest.md) |
-| `ExecutionRequest` | Class | [ExecutionRequest](ExecutionSubsystem/ExecutionRequest.md) |
-| `ExecutionLimits` | Class | [ExecutionLimits](ExecutionSubsystem/ExecutionLimits.md) |
-| `CompileResult` | Class | [CompileResult](ExecutionSubsystem/CompileResult.md) |
-| `ExecutionResult` | Class | [ExecutionResult](ExecutionSubsystem/ExecutionResult.md) |
-| `DockerExecutionEnvironment` | Class | [DockerExecutionEnvironment](ExecutionSubsystem/DockerExecutionEnvironment.md) |
+| `ExecutionEnvironment` | Interface | [ExecutionEnvironment](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/ExecutionEnvironment.md) |
+| `CompileRequest` | Class | [CompileRequest](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/CompileRequest.md) |
+| `ExecutionRequest` | Class | [ExecutionRequest](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/ExecutionRequest.md) |
+| `ExecutionLimits` | Class | [ExecutionLimits](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/ExecutionLimits.md) |
+| `CompileResult` | Class | [CompileResult](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/CompileResult.md) |
+| `ExecutionResult` | Class | [ExecutionResult](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/ExecutionResult.md) |
+| `DockerExecutionEnvironment` | Class | [DockerExecutionEnvironment](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ExecutionSubsystem/DockerExecutionEnvironment.md) |
 
 ## Protected Test Case Store Subsystem (Go)
 
 | Classifier | Kind | Specification |
 |---|---|---|
-| `FileSystemTestCaseStore` | Class | [FileSystemTestCaseStore](ProtectedTestCaseStoreSubsystem/FileSystemTestCaseStore.md) |
+| `FileSystemTestCaseStore` | Class | [FileSystemTestCaseStore](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/ProtectedTestCaseStoreSubsystem/FileSystemTestCaseStore.md) |
 
 ## Security Subsystem (Go)
 
 | Classifier | Kind | Specification |
 |---|---|---|
-| `Argon2idVerifier` | Class | [Argon2idVerifier](SecuritySubsystem/Argon2idVerifier.md) |
+| `Argon2idVerifier` | Class | [Argon2idVerifier](../../InterfaceDesign/SystemInterface/SubsystemInterfaceDesign/SecuritySubsystem/Argon2idVerifier.md) |
 
 ## Integration Adapters (Go)
 

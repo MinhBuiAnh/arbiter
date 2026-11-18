@@ -67,7 +67,7 @@ Iterates the supplied metadata in order and executes each case through `ExecuteO
 
 ### `ExecuteOne(ctx: context.Context, submission: *Submission, testCase: TestCaseMetadata)`
 
-Reads the protected input and expected output, builds `ExecutionLimits` and an `ExecutionRequest`, invokes `ExecutionEnvironment.Execute`, and maps the `ExecutionResult` to a `TestCaseResult`. It uses `ctx`, `submission`, `testCase`. It returns `(TestCaseResult, error)`. Failures are returned through the declared error result rather than as a successful value.
+Reads the protected input and expected output, builds `ExecutionLimits` and an `ExecutionRequest` containing `submission.ID`, invokes `ExecutionEnvironment.Execute`, and maps the `ExecutionResult` to a `TestCaseResult`. Including the ID scopes execution resources for subsequent cleanup. It uses `ctx`, `submission`, `testCase`. It returns `(TestCaseResult, error)`. Failures are returned through the declared error result rather than as a successful value.
 
 ## 7. Other diagrams
 

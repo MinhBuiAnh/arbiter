@@ -53,7 +53,7 @@ No attributes are specified for this classifier in the DCD.
 
 ### `Compile(ctx: context.Context, submission: *Submission)`
 
-Maps the submission language and source to a `CompileRequest`, invokes `ExecutionEnvironment.Compile`, and returns the compilation result. It uses `ctx`, `submission`. It returns `(CompileResult, error)`. Failures are returned through the declared error result rather than as a successful value.
+Maps `submission.ID`, language, and source to a `CompileRequest`, invokes `ExecutionEnvironment.Compile`, and returns the compilation result. Including the ID lets the execution subsystem associate its workspace and container resources with the correct submission for later cleanup. It uses `ctx`, `submission`. It returns `(CompileResult, error)`. Failures are returned through the declared error result rather than as a successful value.
 
 ## 7. Other diagrams
 

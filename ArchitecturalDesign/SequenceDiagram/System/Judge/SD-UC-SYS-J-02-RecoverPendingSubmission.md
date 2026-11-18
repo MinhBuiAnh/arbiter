@@ -8,9 +8,9 @@
 | Primary Actor(s) | Judge Worker |
 | Related Requirements | FR-JUDGE-13, FR-JUDGE-14, FR-JUDGE-16, FR-JUDGE-18, NFR-REL-01, NFR-REL-03 to NFR-REL-07 |
 | Scope | Main flow S1-S11, A1-A5, E1-E4 |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
-| Last updated | 2026-11-14 |
+| Last updated | 2026-11-18 |
 
 ## 1. Scope
 
@@ -28,9 +28,9 @@ The queue remains the delivery mechanism, not the source of truth. No message is
 | A3 | A3 | `alt A3` when S3 finds no Submission |
 | A4 | A4 | `alt A4` when S4 finds a terminal Submission |
 | A5 | A5 | `alt A5` when S5 finds attempts exhausted |
-| E1 | E1 | `break E1` at S1 or S2 |
-| E2 | E2 | `alt E2` on a persistent-store operation |
-| E3 | E3 | `alt E3` at S9 cleanup |
+| E1 | E1 | `break E1` at S1/S2; `alt E1` for failed candidate acknowledgement at S9 |
+| E2 | E2 | `alt E2` on a persistent-store operation at S3-S7 |
+| E3 | E3 | `alt E3` during targeted cleanup at S9 or before retrying interrupted work |
 | E4 | E4 | `break E4` for an unexpected error at any step |
 
 ## 3. Diagram
@@ -59,7 +59,8 @@ skinparam sequence {
 database "PostgreSQL" as DB #FFF2CC
 queue "Redis Streams" as QUEUE #FFE6CC
 participant "Judge Worker" as WK #E1D5E7
-participant "Docker Engine" as DOCKER #E1D5E7
+participant "ResourceCleaner" as CLEANER #E1D5E7
+participant "ExecutionEnvironment\n(interface)" as EXECUTION #FFF2CC
 
 WK -> QUEUE : S1 XPENDING judge:submissions judge-workers
 break E1 - ERR-SYS-002 - queue unavailable or claim failure (S1 or S2)
@@ -80,8 +81,8 @@ end
 QUEUE --> WK : pending message IDs and idle times, or none
 WK -> WK : S1 select messages idle beyond the configured threshold
 opt A1 - no pending messages exceed the idle threshold (S1)
-  WK -> WK : A1 identify an empty recovery batch; proceed to scheduled cleanup
-  note over QUEUE, WK : No Submission is changed. The cycle ends after cleanup and waiting.
+  WK -> WK : A1 identify an empty recovery batch
+  note over QUEUE, WK : No Submission is changed and there are no candidate IDs to clean. The cycle ends after waiting.
 end
 loop for each eligible pending message
   WK -> QUEUE : S2 XCLAIM judge:submissions judge-workers {message_id, idle threshold}
@@ -90,9 +91,9 @@ loop for each eligible pending message
     WK -> WK : E1 stop cycle, leave message pending, retry with backoff
     note right of WK : Log message/group identifiers; do not change Submission state.
   end
-  QUEUE --> WK : claimed message; candidates claimed elsewhere are omitted
+  QUEUE --> WK : claimed message {message_id, submission_id};\ncandidates claimed elsewhere are omitted
   note right of QUEUE : A2 - A competing consumer claimed the candidate. Continue with the next candidate; no second worker lifeline.
-  alt E2 - ERR-SYS-003 - persistent store unavailable (S3, S4, S6, or S7)
+  alt E2 - ERR-SYS-003 - persistent store unavailable (S3-S7)
     WK -> DB : E2 load or update Submission recovery state
     DB -x WK : E2 database operation fails
     WK -> WK : E2 roll back and leave affected message unacknowledged
@@ -100,24 +101,23 @@ loop for each eligible pending message
   else A3 - associated Submission no longer exists (S3)
     WK -> DB : A3 load Submission WHERE id
     DB --> WK : no Submission row
-    WK -> QUEUE : A3 XACK obsolete message
+    WK -> WK : add submission_id to cleanup candidates;\ndefer acknowledgement until cleanup succeeds
     note right of WK : Discard only the obsolete message; no Submission data exists to change.
-    note over WK, QUEUE : Use case ends for this message.
+    note over WK, QUEUE : Do not judge; cleanup then acknowledge at S9.
   else A4 - Submission is already terminal (S4)
     WK -> DB : A4 load Submission status
     DB --> WK : status is COMPLETED or INTERNAL_ERROR
-    WK -> QUEUE : A4 XACK duplicate without judging again
-    WK -> WK : A4 schedule associated orphan resources for cleanup
+    WK -> WK : add submission_id to cleanup candidates;\ndefer acknowledgement until cleanup succeeds
     note right of WK : Preserve the stored terminal result.
-    note over WK, QUEUE : Use case ends for this message.
+    note over WK, QUEUE : Do not judge again; cleanup then acknowledge at S9.
   else A5 - maximum of two attempts is reached (S5)
     WK -> DB : A5 load Submission status and judge_attempts
     group Transaction (atomic)
       WK -> DB : A5 set status INTERNAL_ERROR and persist attempt-limit reason (tx)
       DB --> WK : terminal state committed
     end
-    WK -> QUEUE : A5 XACK only after commit
-    note right of WK : Do not submit another attempt. Use case ends for this message.
+    WK -> WK : add submission_id to cleanup candidates;\ndefer acknowledgement until cleanup succeeds
+    note right of WK : Do not submit another attempt; cleanup then acknowledge at S9.
   else attempts remain
     WK -> DB : S3 load Submission status and judge_attempts
     DB --> WK : non-terminal Submission row
@@ -126,17 +126,41 @@ loop for each eligible pending message
       WK -> DB : S6-S7 conditionally reset COMPILING/RUNNING to QUEUED (tx)
       DB --> WK : reset committed or no reset required
     end
-    ref over WK, DB, QUEUE, DOCKER : S8 UC-SYS-J-01 - Process Submission
+    WK -> CLEANER : clean stale resources for this submission
+    CLEANER -> EXECUTION : CleanFailedResources(ctx, submissionID)
+    EXECUTION --> CLEANER : cleanup result
+    alt stale-resource cleanup fails (ERR-SYS-006)
+      CLEANER --> WK : error; leave message pending
+      note right of WK : Do not start a new attempt until stale resources are removed.
+    else stale resources removed
+      CLEANER --> WK : success
+      ref over WK, DB, QUEUE : S8 UC-SYS-J-01 - Process Submission
+    end
   end
 end
-WK -> DOCKER : S9 remove orphaned execution containers
-DOCKER --> WK : cleanup result
-WK -> WK : S9 remove orphaned temporary workspaces
-alt E3 - ERR-SYS-006 - orphan cleanup failure (S9)
-  WK -> WK : E3 stop cleanup for affected resource; preserve Submission result
-  note right of WK : Log correlation ID and submission_id. Resource remains eligible for cleanup in a later cycle; acknowledgement follows the durable outcome. Affected cleanup operation ends.
-else cleanup succeeds
-  note right of WK : Continue to S10.
+opt S9 - targeted candidates are present
+  WK -> CLEANER : ScheduleOrphanCleanup(ctx, candidateSubmissionIDs)
+  CLEANER -> CLEANER : RemoveOrphanedExecutionResources(ctx, candidates)
+  loop each distinct candidate SubmissionID
+    CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+    EXECUTION --> CLEANER : success or cleanup error
+  end
+  alt E3 - ERR-SYS-006 - one or more targeted cleanups fail
+    CLEANER --> WK : collected cleanup errors
+    WK -> WK : leave every candidate message pending
+    note right of WK : Do not acknowledge any candidate message. Successful removals are idempotent; recovery retries the same IDs without rejudging terminal Submissions.
+  else all candidate cleanups succeed
+    CLEANER --> WK : cleanup batch succeeded
+    loop each candidate message
+      WK -> QUEUE : XACK only after cleanup succeeds
+      alt E1 - ERR-SYS-002 - acknowledgement fails
+        QUEUE -x WK : message remains pending
+        WK -> WK : preserve durable state; retry in a later recovery cycle
+      else acknowledged
+        QUEUE --> WK : acknowledged
+      end
+    end
+  end
 end
 WK -> WK : S10 wait for next recovery cycle
 note over WK, QUEUE, DB : S11 use case ends for the current cycle.
@@ -151,8 +175,14 @@ note over WK, QUEUE, DB : S11 use case ends for the current cycle.
 - A5 persists `INTERNAL_ERROR` before acknowledgement. A terminal result is never overwritten or judged again.
 - Cleanup failure does not alter status or verdict; the resource remains eligible for a later recovery cycle.
 
+- Only IDs from successfully claimed messages whose durable state makes cleanup safe enter the candidate list. Queue claim races and database failures do not add candidates.
+- A3, A4, and A5 messages are acknowledged only after the targeted cleanup batch succeeds. On failure, all candidate messages stay pending; repeating already-successful cleanup is safe.
+- If an acknowledgement fails after cleanup, that message remains pending and is retried; durable state is preserved and terminal submissions are not judged again.
+- Before retrying interrupted work, the worker cleans that Submission's stale resources. UC-SYS-J-01 then performs its own targeted cleanup before acknowledging the message.
+
 ## 5. Change History
 
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-11-14 | Initial diagram. |
+| 1.1 | 2026-11-18 | Clean only caller-supplied recovery-batch IDs; defer acknowledgement until cleanup succeeds. |

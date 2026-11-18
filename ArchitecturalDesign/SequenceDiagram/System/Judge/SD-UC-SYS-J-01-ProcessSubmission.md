@@ -8,13 +8,13 @@
 | Primary Actor(s) | Judge Worker |
 | Related Requirements | FR-JUDGE-03 to FR-JUDGE-12, FR-JUDGE-15 to FR-JUDGE-18, NFR-SEC-06 to NFR-SEC-09, NFR-REL-05 to NFR-REL-07 |
 | Scope | Main flow S1-S30, A1-A7, E5-E8; E1-E4, E9-E10 in SD-UC-SYS-J-01-X |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
-| Last updated | 2026-11-14 |
+| Last updated | 2026-11-18 |
 
 ## 1. Scope
 
-This diagram covers consumption of a queued submission, idempotency, compilation, isolated per-test execution, verdict selection, atomic result persistence, acknowledgement after commit, and post-result cleanup.
+This diagram covers consumption of a queued submission, idempotency, compilation, isolated per-test execution, verdict selection, atomic result persistence, targeted resource cleanup, and acknowledgement after both commit and cleanup.
 
 The worker does not communicate with the User or API. Queue, database, Docker, and test-case-store failures that leave a job pending, plus worker termination, are in [SD-UC-SYS-J-01-X](SD-UC-SYS-J-01-ProcessSubmission-Exceptions.md).
 
@@ -30,15 +30,15 @@ The worker does not communicate with the User or API. Queue, database, Docker, a
 | A5 | A5 | `alt A5` at S20 |
 | A6 | A6 | `alt A6` at S21 |
 | A7 | A7 | `alt A7` at S22 |
-| E1 | - | `SD-UC-SYS-J-01-X`, `group E1` at S1 |
+| E1 | - | `SD-UC-SYS-J-01-X`, `group E1` at S1 or post-cleanup XACK |
 | E2 | - | `SD-UC-SYS-J-01-X`, `group E2` at S2, S7, S13, or S27 |
 | E3 | - | `SD-UC-SYS-J-01-X`, `group E3` at S9, S15, or S17 |
 | E4 | - | `SD-UC-SYS-J-01-X`, `group E4` at S2 or S22 |
-| E5 | E5 | `break E5` at S4; persist `INTERNAL_ERROR`, then acknowledge |
-| E6 | E6 | `break E6` at S2; persist `INTERNAL_ERROR`, then acknowledge |
+| E5 | E5 | `break E5` at S4; persist `INTERNAL_ERROR`, clean resources, then acknowledge |
+| E6 | E6 | `break E6` at S2; persist `INTERNAL_ERROR`, clean resources, then acknowledge |
 | E7 | E7 | `alt E7` at S22 |
-| E8 | E8 | `alt E8` after S29 |
-| E9 | - | `SD-UC-SYS-J-01-X`, `group E9` before S28 |
+| E8 | E8 | `alt E8` after terminal-result cleanup and before acknowledgement |
+| E9 | - | `SD-UC-SYS-J-01-X`, `group E9` before acknowledgement |
 | E10 | - | `SD-UC-SYS-J-01-X`, `group E10` at any step |
 
 ## 3. Diagram
@@ -69,6 +69,8 @@ participant "Test Case Store" as FS #FFF2CC
 queue "Redis Streams" as QUEUE #FFE6CC
 participant "Judge Worker" as WK #E1D5E7
 participant "Docker Engine" as DOCKER #E1D5E7
+participant "ResourceCleaner" as CLEANER #E1D5E7
+participant "ExecutionEnvironment\n(interface)" as EXECUTION #FFF2CC
 
 WK -> QUEUE : S1 XREADGROUP judge-workers judge:submissions
 QUEUE --> WK : message {message_id, submission_id}
@@ -76,10 +78,18 @@ WK -> DB : S2 load submission, problem configuration, and ordered test metadata
 DB --> WK : stored source configuration and test metadata
 WK -> WK : S3 check whether submission is terminal
 break A1 - submission is already terminal (S3)
-  WK -> QUEUE : A1 XACK judge:submissions judge-workers {message_id}
-  WK -> DOCKER : A1 remove any stale container for submission
-  WK -> WK : A1 remove stale workspace
-  note right of WK : Do not judge again or change the terminal result. Use case ends.
+  WK -> CLEANER : A1 CleanFailedResources(ctx, submissionID)
+  CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+  EXECUTION --> CLEANER : cleanup outcome
+  alt E8 - cleanup fails
+    CLEANER --> WK : ERR-SYS-006
+    WK -> WK : leave message pending; do not judge or change terminal result
+    note right of WK : UC-SYS-J-02 retries cleanup from the pending message; use case ends.
+  else cleanup succeeds
+    CLEANER --> WK : success
+    WK -> QUEUE : A1 XACK judge:submissions judge-workers {message_id}
+    note right of WK : Do not judge again or change the terminal result. Use case ends.
+  end
 end
 break E6 - ERR-CONFLICT-012 - problem has no executable test cases (S2)
   WK -> WK : E6 stage INTERNAL_ERROR with no-executable-test-cases reason
@@ -87,7 +97,17 @@ break E6 - ERR-CONFLICT-012 - problem has no executable test cases (S2)
     WK -> DB : E6 persist terminal status INTERNAL_ERROR and reason (tx)
     DB --> WK : committed
   end
-  WK -> QUEUE : E6 XACK only after the terminal result commits
+  WK -> CLEANER : E6 CleanFailedResources(ctx, submissionID)
+  CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+  EXECUTION --> CLEANER : cleanup outcome
+  alt E8 - cleanup fails
+    CLEANER --> WK : ERR-SYS-006
+    WK -> WK : leave message pending
+    note right of WK : UC-SYS-J-02 retries cleanup without judging the terminal Submission again.
+  else cleanup succeeds
+    CLEANER --> WK : success
+    WK -> QUEUE : E6 XACK after commit and cleanup
+  end
   note right of WK : Log message_id, submission_id, and problem_id. Use case ends.
 end
 WK -> WK : S4 validate language and stored source configuration (64 KiB maximum)
@@ -97,7 +117,17 @@ break E5 - ERR-VAL-002 - invalid language or source configuration (S4)
     WK -> DB : E5 persist terminal status INTERNAL_ERROR and reason (tx)
     DB --> WK : committed
   end
-  WK -> QUEUE : E5 XACK only after the terminal result commits
+  WK -> CLEANER : E5 CleanFailedResources(ctx, submissionID)
+  CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+  EXECUTION --> CLEANER : cleanup outcome
+  alt E8 - cleanup fails
+    CLEANER --> WK : ERR-SYS-006
+    WK -> WK : leave message pending
+    note right of WK : UC-SYS-J-02 retries cleanup without judging the terminal Submission again.
+  else cleanup succeeds
+    CLEANER --> WK : success
+    WK -> QUEUE : E5 XACK after commit and cleanup
+  end
   note right of WK : Log message_id and submission_id, never source code. Use case ends.
 end
 group Transaction (atomic)
@@ -146,17 +176,19 @@ group Transaction (atomic)
   WK -> DB : S27 persist terminal status, verdict when present, aggregates, and executed-case results (tx)
   DB --> WK : result transaction committed
 end
-WK -> QUEUE : S28 XACK judge:submissions judge-workers {message_id}
-QUEUE --> WK : acknowledged after commit
-WK -> DOCKER : S29 remove any remaining containers
-DOCKER --> WK : cleanup outcome
-WK -> WK : S29 remove temporary workspace
-alt E8 - ERR-SYS-006 - orphan cleanup failure (S29)
-  WK -> WK : E8 log submission_id and affected resource; preserve committed result
-  note right of WK : Message is already acknowledged. UC-SYS-J-02 retries cleanup later; current use case ends.
-  ref over WK, DB, QUEUE, DOCKER : UC-SYS-J-02 - Recover Pending Submission
-else cleanup succeeds
-  note right of WK : S30 use case ends.
+  WK -> CLEANER : S28 CleanFailedResources(ctx, submissionID)
+  CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+  EXECUTION --> CLEANER : cleanup outcome
+  alt E8 - ERR-SYS-006 - targeted cleanup failure (S28)
+    CLEANER --> WK : cleanup error
+    WK -> WK : leave message pending; do not XACK
+    note right of WK : Preserve the committed result. UC-SYS-J-02 retries cleanup; the terminal Submission is not judged again.
+    ref over WK, DB, QUEUE, CLEANER : UC-SYS-J-02 - Recover Pending Submission
+  else cleanup succeeds
+    CLEANER --> WK : success
+    WK -> QUEUE : S29 XACK judge:submissions judge-workers {message_id}
+    QUEUE --> WK : acknowledged after commit and cleanup
+    note right of WK : S30 use case ends.
 end
 @enduml
 ```
@@ -170,7 +202,8 @@ end
 - The compile container also uses no network, resource/PID limits, a read-only root, bounded workspace, dropped capabilities, no-new-privileges, and a non-root user.
 - Test Case input is mounted read-only. The worker compares normalized, case-sensitive output tokens and treats output over 1 MiB as `WRONG_ANSWER`.
 - Infrastructure uncertainty never becomes a program verdict. `INTERNAL_ERROR` has no inferred verdict.
-- The result transaction at S27 is the durability boundary; the worker does not acknowledge the message before it commits.
+- The result transaction at S27 is the durability boundary. Acknowledgement at S29 follows both that commit and successful targeted cleanup.
+- If cleanup fails after a terminal result is committed, the worker leaves the message pending. Recovery retries cleanup from the message's SubmissionID and does not judge the terminal submission again.
 - Source code, compiler output beyond the bounded user-safe result, hidden Test Case contents, and secrets are not logged.
 
 ## 5. Change History
@@ -178,3 +211,4 @@ end
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-11-14 | Initial diagram. |
+| 1.1 | 2026-11-18 | Defer acknowledgement until targeted cleanup succeeds so pending messages retain cleanup IDs for recovery. |

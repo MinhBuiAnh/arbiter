@@ -8,9 +8,9 @@
 | Primary Actor(s) | Judge Worker |
 | Related Requirements | FR-JUDGE-03, FR-JUDGE-04, FR-JUDGE-12, FR-JUDGE-13, FR-JUDGE-16, FR-JUDGE-18, NFR-SEC-06 to NFR-SEC-09, NFR-REL-05 to NFR-REL-07 |
 | Scope | E1-E4, E9-E10 |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
-| Last updated | 2026-11-14 |
+| Last updated | 2026-11-18 |
 
 ## 1. Scope
 
@@ -22,11 +22,11 @@ Flows not listed here are covered by the primary diagram.
 
 | Flow | Coverage | Diagram element / disposition |
 |------|----------|-------------------------------|
-| E1 | E1 | `group E1` at S1 |
+| E1 | E1 | `group E1` at S1 or a post-cleanup acknowledgement |
 | E2 | E2 | `group E2` at S2, S7, S13, or S27 |
 | E3 | E3 | `group E3` at S9, S15, or S17 |
 | E4 | E4 | `group E4` at S2 or S22 |
-| E9 | E9 | `group E9` before S28 |
+| E9 | E9 | `group E9` before S29 acknowledgement |
 | E10 | E10 | `group E10` at any step |
 
 ## 3. Diagram
@@ -57,6 +57,8 @@ participant "Test Case Store" as FS #FFF2CC
 queue "Redis Streams" as QUEUE #FFE6CC
 participant "Judge Worker" as WK #E1D5E7
 participant "Docker Engine" as DOCKER #E1D5E7
+participant "ResourceCleaner" as CLEANER #E1D5E7
+participant "ExecutionEnvironment\n(interface)" as EXECUTION #FFF2CC
 
 ref over DB, FS, QUEUE, WK, DOCKER : UC-SYS-J-01 - Process Submission
 
@@ -66,6 +68,13 @@ group E1 - ERR-SYS-002 - Redis unavailable (S1)
   WK -> WK : E1 leave submission unchanged and retry with exponential backoff
   note right of WK : No message is acknowledged. Log message_id and consumer group; alert if failure persists or backlog grows. Submission remains QUEUED.
   note over QUEUE, WK : Use case ends for this read attempt.
+end
+
+group E1 - ERR-SYS-002 - XACK fails after cleanup
+  WK -> QUEUE : E1 XACK terminal message
+  QUEUE -x WK : E1 acknowledgement fails
+  WK -> WK : leave message pending; preserve the committed result
+  note right of WK : UC-SYS-J-02 reclaims the message, retries targeted cleanup, and does not judge a terminal Submission again.
 end
 
 group E2 - ERR-SYS-003 - PostgreSQL unavailable (S2, S7, S13, or S27)
@@ -94,19 +103,28 @@ group E4 - ERR-RES-002 - Test Case data missing or unreadable (S2 or S22)
     WK -> DB : E4 persist INTERNAL_ERROR and Test Case data unavailable reason (tx)
     DB --> WK : terminal result committed
   end
-  WK -> QUEUE : E4 XACK only after the result commits
-  QUEUE --> WK : acknowledged
-  note right of WK : Log message_id, submission_id, and Test Case ID; never log file contents. Continues at S29 cleanup.
+  WK -> CLEANER : E4 CleanFailedResources(ctx, submissionID)
+  CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+  EXECUTION --> CLEANER : cleanup outcome
+  alt cleanup fails (ERR-SYS-006)
+    CLEANER --> WK : error
+    WK -> WK : leave message pending
+    note right of WK : UC-SYS-J-02 retries cleanup without judging the terminal Submission again.
+  else cleanup succeeds
+    CLEANER --> WK : success
+    WK -> QUEUE : E4 XACK after commit and cleanup
+  end
+  note right of WK : Log message_id, submission_id, and Test Case ID; never log file contents.
 end
 
-group E9 - ERR-SYS-007 - Judge Worker terminated before acknowledgement (before S28)
+group E9 - ERR-SYS-007 - Judge Worker terminated before acknowledgement (before S29)
   note over DB, QUEUE, WK
-    If S27 committed, the terminal result remains valid and the message stays pending.
+    If S27 committed but cleanup or acknowledgement did not complete, the terminal result remains valid and the message stays pending.
     If S27 did not commit, the Submission may remain COMPILING or RUNNING.
     No acknowledgement is sent by the terminated worker.
     Monitoring alerts that the worker stopped processing an in-flight message.
   end note
-  ref over DB, QUEUE, WK : UC-SYS-J-02 - Recover Pending Submission
+  ref over DB, QUEUE, WK, CLEANER : UC-SYS-J-02 - Recover Pending Submission
   note right of WK : Current worker attempt ends; recovery handles the pending message.
 end
 
@@ -118,8 +136,18 @@ group E10 - ERR-SYS-001 - unexpected internal error (any step)
       WK -> DB : E10 persist INTERNAL_ERROR (tx)
       DB --> WK : terminal result committed
     end
-    WK -> QUEUE : E10 XACK only after the commit
-    QUEUE --> WK : acknowledged
+    WK -> CLEANER : E10 CleanFailedResources(ctx, submissionID)
+    CLEANER -> EXECUTION : Cleanup(ctx, submissionID)
+    EXECUTION --> CLEANER : cleanup outcome
+    alt cleanup fails (ERR-SYS-006)
+      CLEANER --> WK : error
+      WK -> WK : leave message pending
+      note right of WK : UC-SYS-J-02 retries cleanup without judging the terminal Submission again.
+    else cleanup succeeds
+      CLEANER --> WK : success
+      WK -> QUEUE : E10 XACK after commit and cleanup
+      QUEUE --> WK : acknowledged
+    end
     note right of WK : Use case ends.
   else no safe terminal result can be committed
     WK -> WK : E10 leave message pending; do not record an unsupported result
@@ -132,7 +160,7 @@ end
 ## 4. Notes
 
 - Each group is an independent failure branch. Failed reads, writes, or container operations never create a user-code verdict.
-- E4 is the exception to pending retry: the missing-data condition is durably recorded as `INTERNAL_ERROR`, then acknowledged.
+- E4 records the missing-data condition as `INTERNAL_ERROR`; acknowledgement follows successful cleanup, and a cleanup failure leaves the message pending.
 - E9 distinguishes a committed result from a failed result transaction. Recovery checks the durable Submission state before acting.
 - No source code, hidden Test Case contents, tokens, secrets, or container internals are logged.
 
@@ -141,3 +169,4 @@ end
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-11-14 | Initial exception supplement. |
+| 1.1 | 2026-11-18 | Keep messages pending when targeted cleanup or acknowledgement fails. |

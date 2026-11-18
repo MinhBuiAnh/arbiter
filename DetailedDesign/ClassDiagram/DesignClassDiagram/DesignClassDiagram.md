@@ -10,8 +10,8 @@
 | Rules | [Design Class Diagram Ruleset](Ruleset.md) |
 | Related artifact | [Class Design Specification Ruleset](../ClassDesignSpecification/Ruleset.md) |
 | Status | Draft |
-| Version | 0.1 |
-| Date | 2026-11-16 |
+| Version | 0.3 |
+| Date | 2026-11-18 |
 
 ---
 
@@ -1097,11 +1097,11 @@ package "Judge Module (Go)" as JudgeModule {
   }
 
   class "ResourceCleaner" as JDGResourceCleaner {
-    +CleanTemporaryWorkspaces(ctx: context.Context): error
+    +CleanTemporaryWorkspaces(ctx: context.Context, submissionIDs: []SubmissionID): error
     +CleanFailedResources(ctx: context.Context, submissionID: SubmissionID): error
-    +CleanTemporaryResources(ctx: context.Context): error
-    +ScheduleOrphanCleanup(ctx: context.Context): error
-    +RemoveOrphanedExecutionResources(ctx: context.Context): error
+    +CleanTemporaryResources(ctx: context.Context, submissionIDs: []SubmissionID): error
+    +ScheduleOrphanCleanup(ctx: context.Context, candidateSubmissionIDs: []SubmissionID): error
+    +RemoveOrphanedExecutionResources(ctx: context.Context, candidateSubmissionIDs: []SubmissionID): error
   }
 }
 
@@ -1171,11 +1171,13 @@ package "Execution Subsystem (Go)" as Execution {
   }
 
   class "CompileRequest" as EXECompileRequest {
+    +SubmissionID: SubmissionID
     +Language: Language
     +Source: string
   }
 
   class "ExecutionRequest" as EXEExecutionRequest {
+    +SubmissionID: SubmissionID
     +ArtifactPath: string
     +Input: string
     +ExpectedOutput: string
@@ -1208,11 +1210,23 @@ package "Execution Subsystem (Go)" as Execution {
 }
 
 package "Protected Test Case Store Subsystem (Go)" as ProtectedStore {
-  class "FileSystemTestCaseStore" as FSFileSystemTestCaseStore
+  class "FileSystemTestCaseStore" as FSFileSystemTestCaseStore {
+    -rootDir: string
+    +ReadTestCaseFiles(ctx: context.Context, testCaseID: TestCaseID): (TestCaseFileRefs, error)
+    +ReadTestCaseData(ctx: context.Context, testCaseID: TestCaseID): (TestCaseData, error)
+    +StoreTestCaseFiles(ctx: context.Context, testCaseID: TestCaseID, data: TestCaseData): error
+    +ReplaceChangedFiles(ctx: context.Context, testCaseID: TestCaseID, data: TestCaseData): error
+    +VerifyTestCaseFilesReadable(ctx: context.Context, testCaseID: TestCaseID): error
+    +DeleteTestCaseFiles(ctx: context.Context, testCaseID: TestCaseID): error
+  }
 }
 
 package "Security Subsystem (Go)" as Security {
-  class "Argon2idVerifier" as SECArgon2idVerifier
+  class "Argon2idVerifier" as SECArgon2idVerifier {
+    +Hash(plain: string): (string, error)
+    +Verify(hash: string, plain: string): bool
+    +NeedsRehash(hash: string): bool
+  }
 }
 
 package "Integration Adapters (Go)" as Integration {
@@ -1383,6 +1397,7 @@ PRGProgressStore ..> PRGLeaderboardEntry
 JDGJudgeWorker --> MQSubmissionQueue
 JDGJudgeWorker --> SUBSubmissionStore
 JDGJudgeWorker --> JDGSubmissionProcessor
+JDGJudgeWorker --> JDGResourceCleaner
 JDGJudgeWorker ..> MQQueueMessage
 
 JDGSubmissionProcessor --> JDGCompiler
@@ -1460,7 +1475,7 @@ INTProblemLookupAdapter --> CATProblemQueryService
 | Persistence Interface | Boundary | `Persistence Subsystem` package: module-declared ports realized by Postgres adapters | Modeled as a subsystem. Internal schema and query details are omitted. |
 | Message Queue Interface | Boundary | `Message Queue Subsystem` package: `SubmissionQueue` and `RedisStreamQueue` | Modeled as a subsystem with a provided port and one adapter. |
 | Execution Environment Interface | Boundary | `Execution Subsystem` package: `ExecutionEnvironment`, limit/result types, `DockerExecutionEnvironment` | Modeled as a subsystem with a provided port and one adapter. |
-| Protected Test Case Store Interface | Boundary | `Protected Test Case Store Subsystem` package: `FileSystemTestCaseStore` realizing `TestCaseStore` | Modeled as a subsystem. File layout and encryption details are omitted. |
+| Protected Test Case Store Interface | Boundary | `Protected Test Case Store Subsystem` package: `FileSystemTestCaseStore` realizing `TestCaseStore` | Modeled as a subsystem. Protected-volume layout and permissions are detailed in its subsystem design; application-level encryption is not specified. |
 | Account and Auth | Control | `Account Module`: `AuthService`, `AccountService`, `AdminUserService` | Split by authentication, self-service, and administration responsibilities. |
 | Problem Catalog | Control | `Catalog Module`: `ProblemQueryService`, `ProblemAdminService` | Split read/public behavior from administrative mutation behavior. |
 | Test Case Management | Control | `Test Case Module`: `TestCaseService` | Retained as one cohesive service; cross-module problem checks use `ProblemLookup`. |

@@ -21,7 +21,7 @@
 Judge component that removes temporary and orphaned execution resources.
 
 - Declared outgoing design relationships: `ExecutionEnvironment`.
-- Declared incoming design relationships: `SubmissionProcessor`.
+- Declared incoming design relationships: `JudgeWorker`, `SubmissionProcessor`.
 
 ## 2. Attribute design
 
@@ -31,19 +31,20 @@ No attributes are specified for this classifier in the DCD.
 
 | Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
 |--------------------------------------|-----------------|------------|-------|-------------|
-| `CleanTemporaryWorkspaces(ctx: context.Context)` | `error` | Public | Instance | Removes temporary judge workspaces through `ExecutionEnvironment.Cleanup` where a submission identifier is available; the DCD does not declare a workspace attribute. |
+| `CleanTemporaryWorkspaces(ctx: context.Context, submissionIDs: []SubmissionID)` | `error` | Public | Instance | Removes execution resources for the supplied submissions through `ExecutionEnvironment.Cleanup`. |
 | `CleanFailedResources(ctx: context.Context, submissionID: SubmissionID)` | `error` | Public | Instance | Removes the failed submission's resources through `ExecutionEnvironment.Cleanup`. |
-| `CleanTemporaryResources(ctx: context.Context)` | `error` | Public | Instance | Removes temporary execution resources that are no longer referenced. |
-| `ScheduleOrphanCleanup(ctx: context.Context)` | `error` | Public | Instance | Schedules the orphan-removal pass through `RemoveOrphanedExecutionResources`. |
-| `RemoveOrphanedExecutionResources(ctx: context.Context)` | `error` | Public | Instance | Identifies and removes execution resources that have no live submission through `ExecutionEnvironment.Cleanup`. |
+| `CleanTemporaryResources(ctx: context.Context, submissionIDs: []SubmissionID)` | `error` | Public | Instance | Removes temporary execution resources only for the supplied submissions. |
+| `ScheduleOrphanCleanup(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)` | `error` | Public | Instance | Starts a cleanup pass for the caller-identified orphan candidates. |
+| `RemoveOrphanedExecutionResources(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)` | `error` | Public | Instance | Removes resources only for the candidate submissions supplied by the caller. |
 
 ## 4. Parameter design
 
-### `CleanTemporaryWorkspaces(ctx: context.Context)`
+### `CleanTemporaryWorkspaces(ctx: context.Context, submissionIDs: []SubmissionID)`
 
 | Name | Data type | Default value | Direction | Description |
 |------|-----------|---------------|-----------|-------------|
 | `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
+| `submissionIDs` | `[]SubmissionID` | — | in | Submission identifiers whose execution resources are to be cleaned. |
 
 ### `CleanFailedResources(ctx: context.Context, submissionID: SubmissionID)`
 
@@ -52,51 +53,54 @@ No attributes are specified for this classifier in the DCD.
 | `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
 | `submissionID` | `SubmissionID` | — | in | Submission whose failed resources are removed. |
 
-### `CleanTemporaryResources(ctx: context.Context)`
+### `CleanTemporaryResources(ctx: context.Context, submissionIDs: []SubmissionID)`
 
 | Name | Data type | Default value | Direction | Description |
 |------|-----------|---------------|-----------|-------------|
 | `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
+| `submissionIDs` | `[]SubmissionID` | — | in | Submission identifiers whose temporary resources are to be cleaned. |
 
-### `ScheduleOrphanCleanup(ctx: context.Context)`
-
-| Name | Data type | Default value | Direction | Description |
-|------|-----------|---------------|-----------|-------------|
-| `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
-
-### `RemoveOrphanedExecutionResources(ctx: context.Context)`
+### `ScheduleOrphanCleanup(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)`
 
 | Name | Data type | Default value | Direction | Description |
 |------|-----------|---------------|-----------|-------------|
 | `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
+| `candidateSubmissionIDs` | `[]SubmissionID` | — | in | IDs already identified by the recovery worker as safe cleanup candidates. |
+
+### `RemoveOrphanedExecutionResources(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)`
+
+| Name | Data type | Default value | Direction | Description |
+|------|-----------|---------------|-----------|-------------|
+| `ctx` | `context.Context` | — | in | Carries cancellation, deadlines, and request-scoped values. |
+| `candidateSubmissionIDs` | `[]SubmissionID` | — | in | IDs already identified by the recovery worker as safe cleanup candidates. |
 
 ## 5. Exception
 
 | Error / outcome | Condition | Handling | Evidence |
 |---|---|---|---|
-| `ERR-SYS-006` | Orphan-resource cleanup failure. | Cleanup is retried; the failure is logged and does not change a verdict. | [SD-UC-SYS-J-01-ProcessSubmission](../../../../ArchitecturalDesign/SequenceDiagram/System/Judge/SD-UC-SYS-J-01-ProcessSubmission.md) |
+| `ERR-SYS-006` | Cleanup fails for one or more supplied submission IDs. | Continue attempting the remaining IDs and return the collected errors; `JudgeWorker` leaves associated messages pending so recovery can retry. | [SD-UC-SYS-J-02-RecoverPendingSubmission](../../../../ArchitecturalDesign/SequenceDiagram/System/Judge/SD-UC-SYS-J-02-RecoverPendingSubmission.md), [SD-UC-SYS-J-01-ProcessSubmission](../../../../ArchitecturalDesign/SequenceDiagram/System/Judge/SD-UC-SYS-J-01-ProcessSubmission.md) |
 
 ## 6. Method
 
-### `CleanTemporaryWorkspaces(ctx: context.Context)`
+### `CleanTemporaryWorkspaces(ctx: context.Context, submissionIDs: []SubmissionID)`
 
-Removes temporary judge workspaces through `ExecutionEnvironment.Cleanup` where a submission identifier is available; the DCD does not declare a workspace attribute. It uses `ctx`. It returns `error`. Failures are returned through the declared error result rather than as a successful value.
+Calls `ExecutionEnvironment.Cleanup` for each supplied submission ID. It attempts all IDs and returns the collected cleanup errors. It uses `ctx`, `submissionIDs`. It returns `error`.
 
 ### `CleanFailedResources(ctx: context.Context, submissionID: SubmissionID)`
 
 Removes the failed submission's resources through `ExecutionEnvironment.Cleanup`. It uses `ctx`, `submissionID`. It returns `error`. Failures are returned through the declared error result rather than as a successful value.
 
-### `CleanTemporaryResources(ctx: context.Context)`
+### `CleanTemporaryResources(ctx: context.Context, submissionIDs: []SubmissionID)`
 
-Removes temporary execution resources that are no longer referenced. It uses `ctx`. It returns `error`. Failures are returned through the declared error result rather than as a successful value.
+Calls `ExecutionEnvironment.Cleanup` for each supplied submission ID. It removes no resources for IDs outside the list and returns collected errors after attempting the full list. It uses `ctx`, `submissionIDs`. It returns `error`.
 
-### `ScheduleOrphanCleanup(ctx: context.Context)`
+### `ScheduleOrphanCleanup(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)`
 
-Schedules the orphan-removal pass through `RemoveOrphanedExecutionResources`. It uses `ctx`. It returns `error`. Failures are returned through the declared error result rather than as a successful value.
+Starts a cleanup pass for the supplied candidates by delegating to `RemoveOrphanedExecutionResources`. It uses `ctx`, `candidateSubmissionIDs`. It returns `error` after the pass; failures are returned through the declared error result.
 
-### `RemoveOrphanedExecutionResources(ctx: context.Context)`
+### `RemoveOrphanedExecutionResources(ctx: context.Context, candidateSubmissionIDs: []SubmissionID)`
 
-Identifies and removes execution resources that have no live submission through `ExecutionEnvironment.Cleanup`. It uses `ctx`. It returns `error`. Failures are returned through the declared error result rather than as a successful value.
+Deduplicates the caller-identified candidates, invokes `ExecutionEnvironment.Cleanup` once per unique ID, continues after individual failures, and returns the collected errors. It does not enumerate Docker resources or infer submission liveness. It uses `ctx`, `candidateSubmissionIDs`. It returns `error`.
 
 ## 7. Other diagrams
 
