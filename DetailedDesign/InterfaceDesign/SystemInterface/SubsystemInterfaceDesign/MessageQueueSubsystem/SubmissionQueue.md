@@ -11,8 +11,8 @@
 | Design class diagram | [DesignClassDiagram.md](../../../../ClassDiagram/DesignClassDiagram/DesignClassDiagram.md) |
 | Ruleset | [Ruleset.md](../../../../ClassDiagram/Ruleset.md) |
 | Status | Draft |
-| Version | 0.1 |
-| Date | 2026-11-16 |
+| Version | 0.2 |
+| Date | 2026-11-19 |
 
 ## 1. Class identification
 
@@ -81,6 +81,7 @@ No attributes are specified for this classifier in the DCD.
 | Error / outcome | Condition | Handling | Evidence |
 |---|---|---|---|
 | `ERR-SYS-002` | Redis or queue unavailable, or message claim failure. | Publication is retried with backoff; the committed submission remains queued. | [SD-UC-SYS-J-01-ProcessSubmission-Exceptions](../../../../../ArchitecturalDesign/SequenceDiagram/System/Judge/SD-UC-SYS-J-01-ProcessSubmission-Exceptions.md) |
+| Invalid argument or canceled context | Count is non-positive, duration is negative, an ID is invalid, or context is canceled. | Return an error without acknowledgement or partial queue state. | [Message Queue subsystem](../../SubsystemDesign/MessageQueueSubsystem/MessageQueueSubsystem.md) |
 
 ## 6. Method
 
@@ -106,4 +107,8 @@ Claims messages older than `olderThan` for the consumer. It is implemented by `R
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+- [Enqueue](../../SubsystemDesign/MessageQueueSubsystem/Diagram/SD-MQ-Enqueue.md)
+- [Read](../../SubsystemDesign/MessageQueueSubsystem/Diagram/SD-MQ-Read.md)
+- [Acknowledge](../../SubsystemDesign/MessageQueueSubsystem/Diagram/SD-MQ-Acknowledge.md)
+- [LeavePending](../../SubsystemDesign/MessageQueueSubsystem/Diagram/SD-MQ-LeavePending.md)
+- [ClaimStale](../../SubsystemDesign/MessageQueueSubsystem/Diagram/SD-MQ-ClaimStale.md)

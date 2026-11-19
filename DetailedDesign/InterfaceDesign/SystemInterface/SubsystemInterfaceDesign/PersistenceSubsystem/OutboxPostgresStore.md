@@ -25,24 +25,29 @@ PostgreSQL adapter that realizes `OutboxStore`.
 
 ## 2. Attribute design
 
-No attributes are specified for this classifier in the DCD.
+| Name | Data type | Visibility | Scope | Default value | Description |
+|---|---|---|---|---|---|
+| `db` | `PostgresDB` | Private | Instance | — | Pooled PostgreSQL database used for outbox operations. |
 
 ## 3. Operation design
 
-No operations are specified for this classifier in the DCD.
+| Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
+|---|---|---|---|---|
+| `FindUnpublishedEvents(ctx: context.Context, limit: int)` | `([]OutboxEvent, error)` | Public | Instance | Finds oldest unpublished events. |
+| `MarkEventPublished(ctx: context.Context, eventID: EventID)` | `error` | Public | Instance | Marks an event published. |
 
 ## 4. Parameter design
 
-No operations are specified, so there are no parameters.
+All operations receive `ctx: context.Context`; `FindUnpublishedEvents` receives `limit` and `MarkEventPublished` receives `eventID`.
 
 ## 5. Exception
 
-None identified in the referenced sequence diagrams.
+See [SD-PERS-Outbox](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Outbox.md) for read/update and `ERR-SYS-003` paths.
 
 ## 6. Method
 
-No methods are specified for this classifier in the DCD.
+Uses `db` to scan unpublished events and mark only rows still unpublished. See [OutboxPostgresStore](../../SubsystemDesign/PersistenceSubsystem/Specification/OutboxPostgresStore.md).
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+[SD-PERS-Outbox](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Outbox.md)

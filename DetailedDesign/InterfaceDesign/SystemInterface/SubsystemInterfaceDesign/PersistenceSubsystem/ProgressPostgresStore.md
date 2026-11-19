@@ -25,24 +25,30 @@ PostgreSQL adapter that realizes `ProgressStore`.
 
 ## 2. Attribute design
 
-No attributes are specified for this classifier in the DCD.
+| Name | Data type | Visibility | Scope | Default value | Description |
+|---|---|---|---|---|---|
+| `db` | `PostgresDB` | Private | Instance | — | Pooled PostgreSQL database used for aggregate reads. |
 
 ## 3. Operation design
 
-No operations are specified for this classifier in the DCD.
+| Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
+|---|---|---|---|---|
+| `ReadUserActivitySummary(ctx: context.Context, userID: AccountID)` | `(*UserStatistics, error)` | Public | Instance | Reads activity summary. |
+| `ReadLeaderboard(ctx: context.Context, page: PageQuery)` | `(PageResult[LeaderboardEntry], error)` | Public | Instance | Reads leaderboard page. |
+| `ReadSubmissionAndProblemAggregates(ctx: context.Context, userID: AccountID)` | `(*UserStatistics, error)` | Public | Instance | Reads aggregate source counts. |
 
 ## 4. Parameter design
 
-No operations are specified, so there are no parameters.
+All operations receive `ctx: context.Context`; `Read...` operations use the exact DCD `userID` or `page` parameter.
 
 ## 5. Exception
 
-None identified in the referenced sequence diagrams.
+See [SD-PERS-Progress](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Progress.md) for aggregate/query and `ERR-SYS-003` paths.
 
 ## 6. Method
 
-No methods are specified for this classifier in the DCD.
+Uses bounded SQL aggregate queries and maps only public progress projections. See [ProgressPostgresStore](../../SubsystemDesign/PersistenceSubsystem/Specification/ProgressPostgresStore.md).
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+[SD-PERS-Progress](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Progress.md)

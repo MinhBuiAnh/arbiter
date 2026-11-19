@@ -25,24 +25,43 @@ PostgreSQL adapter that realizes `SubmissionStore`.
 
 ## 2. Attribute design
 
-No attributes are specified for this classifier in the DCD.
+| Name | Data type | Visibility | Scope | Default value | Description |
+|---|---|---|---|---|---|
+| `db` | `PostgresDB` | Private | Instance | — | Pooled PostgreSQL database used for Submission and judging transactions. |
 
 ## 3. Operation design
 
-No operations are specified for this classifier in the DCD.
+| Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
+|---|---|---|---|---|
+| `StoreSubmissionAndEvent(ctx: context.Context, submission: *Submission, event: *OutboxEvent)` | `error` | Public | Instance | Inserts Submission and outbox event atomically. |
+| `LoadSubmission(ctx: context.Context, id: SubmissionID)` | `(*Submission, error)` | Public | Instance | Loads one Submission. |
+| `LoadSubmissionContext(ctx: context.Context, id: SubmissionID)` | `(*JudgeContext, error)` | Public | Instance | Loads judging context. |
+| `ReadSubmissionStatus(ctx: context.Context, id: SubmissionID)` | `(*SubmissionStatusResponse, error)` | Public | Instance | Reads status projection. |
+| `ReadSubmissionResult(ctx: context.Context, id: SubmissionID)` | `(*SubmissionDetailsResponse, error)` | Public | Instance | Reads terminal result. |
+| `ReadSubmissionDetails(ctx: context.Context, id: SubmissionID)` | `(*SubmissionDetailsResponse, error)` | Public | Instance | Reads details projection. |
+| `QuerySubmissionSummaries(ctx: context.Context, filter: SubmissionFilter, page: PageQuery)` | `(PageResult[SubmissionSummary], error)` | Public | Instance | Queries administrative summaries. |
+| `ReadOwnSubmissionSummaries(ctx: context.Context, userID: AccountID, page: PageQuery)` | `(PageResult[SubmissionSummary], error)` | Public | Instance | Queries own summaries. |
+| `PersistTerminalResult(ctx: context.Context, result: *JudgeResult)` | `error` | Public | Instance | Atomically persists terminal result and case rows. |
+| `PersistInternalError(ctx: context.Context, id: SubmissionID, reason: string)` | `error` | Public | Instance | Persists internal error. |
+| `MarkInternalError(ctx: context.Context, id: SubmissionID, reason: string)` | `error` | Public | Instance | Marks Submission internally failed. |
+| `ResetToQueued(ctx: context.Context, id: SubmissionID)` | `error` | Public | Instance | Requeues interrupted work. |
+| `UpdateStatus(ctx: context.Context, id: SubmissionID, status: SubmissionStatus)` | `error` | Public | Instance | Updates status. |
+| `IncrementAttemptAndSetCompiling(ctx: context.Context, id: SubmissionID)` | `error` | Public | Instance | Increments attempt and starts compilation. |
+| `SetRunning(ctx: context.Context, id: SubmissionID)` | `error` | Public | Instance | Sets Running. |
+| `RollBackUncommittedChanges(ctx: context.Context)` | `error` | Public | Instance | Rolls back current transaction. |
 
 ## 4. Parameter design
 
-No operations are specified, so there are no parameters.
+All operations receive `ctx: context.Context`; remaining parameters are the exact DCD signature parameters. Source code and hidden test data are never included in normal result errors.
 
 ## 5. Exception
 
-None identified in the referenced sequence diagrams.
+See [SD-PERS-Submission](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Submission.md) for transaction, not-found, conflict, rollback, and `ERR-SYS-003` paths.
 
 ## 6. Method
 
-No methods are specified for this classifier in the DCD.
+Uses `db` for submission/outbox and terminal-result transactions, conditional status transitions, context loads, and bounded user/admin queries. See [SubmissionPostgresStore](../../SubsystemDesign/PersistenceSubsystem/Specification/SubmissionPostgresStore.md).
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+[SD-PERS-Submission](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Submission.md)

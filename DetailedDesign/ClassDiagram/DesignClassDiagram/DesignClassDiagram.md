@@ -10,8 +10,8 @@
 | Rules | [Design Class Diagram Ruleset](Ruleset.md) |
 | Related artifact | [Class Design Specification Ruleset](../ClassDesignSpecification/Ruleset.md) |
 | Status | Draft |
-| Version | 0.3 |
-| Date | 2026-11-18 |
+| Version | 0.5 |
+| Date | 2026-11-19 |
 
 ---
 
@@ -1130,17 +1130,80 @@ package "Outbox Module (Go)" as OutboxModule {
 }
 
 package "Persistence Subsystem (Go)" as Persistence {
-  class "AccountPostgresStore" as PSAccountStore
+  class "AccountPostgresStore" as PSAccountStore {
+    -db: PostgresDB
+    +FindAccount(ctx: context.Context, id: AccountID): (*Account, error)
+    +FindAccountByIdentifier(ctx: context.Context, identifier: string): (*Account, error)
+    +AccountExists(ctx: context.Context, username: string, email: string): (bool, error)
+    +SaveAccount(ctx: context.Context, account: *Account): error
+    +ReadAccountStatus(ctx: context.Context, id: AccountID): (AccountStatus, error)
+    +UpdateAccountStatus(ctx: context.Context, id: AccountID, expectedVersion: int, status: AccountStatus, actor: AccountID): error
+    +QueryAccounts(ctx: context.Context, filter: AccountFilter, page: PageQuery): (PageResult[AccountSummary], error)
+    +ReadAccountDetails(ctx: context.Context, id: AccountID): (*AccountDetails, error)
+    +ReadCommittedProfile(ctx: context.Context, id: AccountID): (*AccountProfile, error)
+  }
 
-  class "ProblemPostgresStore" as PSProblemStore
+  class "ProblemPostgresStore" as PSProblemStore {
+    -db: PostgresDB
+    +FindProblem(ctx: context.Context, id: ProblemID): (*Problem, error)
+    +SaveProblem(ctx: context.Context, problem: *Problem): error
+    +UpdateProblem(ctx: context.Context, problem: *Problem, expectedVersion: int): error
+    +SaveProblemState(ctx: context.Context, id: ProblemID, state: LifecycleStatus, expectedVersion: int): error
+    +SavePublicationState(ctx: context.Context, id: ProblemID, state: PublicationStatus, expectedVersion: int): error
+    +ReadProblemState(ctx: context.Context, id: ProblemID): (*ProblemState, error)
+    +ListPublishedProblems(ctx: context.Context, query: ProblemQuery): (PageResult[Problem], error)
+    +SearchPublishedProblems(ctx: context.Context, query: ProblemQuery): (PageResult[Problem], error)
+    +ReadPublicProblem(ctx: context.Context, id: ProblemID): (*ProblemDetails, error)
+    +ReadProblemForSubmission(ctx: context.Context, id: ProblemID): (*ProblemSubmissionContext, error)
+    +ReadPublicStatistics(ctx: context.Context, id: ProblemID): (PublicStatistics, error)
+  }
 
-  class "TestCasePostgresRepository" as PSTestCaseRepository
+  class "TestCasePostgresRepository" as PSTestCaseRepository {
+    -db: PostgresDB
+    +FindTestCase(ctx: context.Context, id: TestCaseID): (*TestCase, error)
+    +ReadTestCaseSet(ctx: context.Context, problemID: ProblemID): (*TestCaseSet, error)
+    +ListTestCaseMetadata(ctx: context.Context, problemID: ProblemID): ([]TestCaseMetadata, error)
+    +SaveTestCase(ctx: context.Context, testCase: *TestCase): error
+    +UpdateTestCase(ctx: context.Context, testCase: *TestCase, expectedVersion: int): error
+    +DeleteAndCompactTestCases(ctx: context.Context, problemID: ProblemID, testCaseID: TestCaseID): error
+    +SaveTestCaseOrder(ctx: context.Context, problemID: ProblemID, orderedIDs: []TestCaseID, expectedSetVersion: int): error
+    +SaveTestCaseType(ctx: context.Context, id: TestCaseID, testCaseType: TestCaseType, expectedVersion: int): error
+    +ReadTestCaseType(ctx: context.Context, id: TestCaseID): (TestCaseType, error)
+    +ReadTestCaseSetVersion(ctx: context.Context, problemID: ProblemID): (int, error)
+  }
 
-  class "SubmissionPostgresStore" as PSSubmissionStore
+  class "SubmissionPostgresStore" as PSSubmissionStore {
+    -db: PostgresDB
+    +StoreSubmissionAndEvent(ctx: context.Context, submission: *Submission, event: *OutboxEvent): error
+    +LoadSubmission(ctx: context.Context, id: SubmissionID): (*Submission, error)
+    +LoadSubmissionContext(ctx: context.Context, id: SubmissionID): (*JudgeContext, error)
+    +ReadSubmissionStatus(ctx: context.Context, id: SubmissionID): (*SubmissionStatusResponse, error)
+    +ReadSubmissionResult(ctx: context.Context, id: SubmissionID): (*SubmissionDetailsResponse, error)
+    +ReadSubmissionDetails(ctx: context.Context, id: SubmissionID): (*SubmissionDetailsResponse, error)
+    +QuerySubmissionSummaries(ctx: context.Context, filter: SubmissionFilter, page: PageQuery): (PageResult[SubmissionSummary], error)
+    +ReadOwnSubmissionSummaries(ctx: context.Context, userID: AccountID, page: PageQuery): (PageResult[SubmissionSummary], error)
+    +PersistTerminalResult(ctx: context.Context, result: *JudgeResult): error
+    +PersistInternalError(ctx: context.Context, id: SubmissionID, reason: string): error
+    +MarkInternalError(ctx: context.Context, id: SubmissionID, reason: string): error
+    +ResetToQueued(ctx: context.Context, id: SubmissionID): error
+    +UpdateStatus(ctx: context.Context, id: SubmissionID, status: SubmissionStatus): error
+    +IncrementAttemptAndSetCompiling(ctx: context.Context, id: SubmissionID): error
+    +SetRunning(ctx: context.Context, id: SubmissionID): error
+    +RollBackUncommittedChanges(ctx: context.Context): error
+  }
 
-  class "ProgressPostgresStore" as PSProgressStore
+  class "ProgressPostgresStore" as PSProgressStore {
+    -db: PostgresDB
+    +ReadUserActivitySummary(ctx: context.Context, userID: AccountID): (*UserStatistics, error)
+    +ReadLeaderboard(ctx: context.Context, page: PageQuery): (PageResult[LeaderboardEntry], error)
+    +ReadSubmissionAndProblemAggregates(ctx: context.Context, userID: AccountID): (*UserStatistics, error)
+  }
 
-  class "OutboxPostgresStore" as PSOutboxStore
+  class "OutboxPostgresStore" as PSOutboxStore {
+    -db: PostgresDB
+    +FindUnpublishedEvents(ctx: context.Context, limit: int): ([]OutboxEvent, error)
+    +MarkEventPublished(ctx: context.Context, eventID: EventID): error
+  }
 }
 
 package "Message Queue Subsystem (Go)" as MessageQueue {
@@ -1160,7 +1223,16 @@ package "Message Queue Subsystem (Go)" as MessageQueue {
     +EnqueuedAt: time.Time
   }
 
-  class "RedisStreamQueue" as MQRedisStreamQueue
+  class "RedisStreamQueue" as MQRedisStreamQueue {
+    -client: RedisStreamClient
+    -streamKey: string
+    -consumerGroup: string
+    +Enqueue(ctx: context.Context, message: QueueMessage): error
+    +Read(ctx: context.Context, consumer: string, count: int): ([]QueueMessage, error)
+    +Acknowledge(ctx: context.Context, message: QueueMessage): error
+    +LeavePending(ctx: context.Context, message: QueueMessage): error
+    +ClaimStale(ctx: context.Context, consumer: string, olderThan: time.Duration): ([]QueueMessage, error)
+  }
 }
 
 package "Execution Subsystem (Go)" as Execution {

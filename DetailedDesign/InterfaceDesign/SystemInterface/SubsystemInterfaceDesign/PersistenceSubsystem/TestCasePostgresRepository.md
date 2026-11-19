@@ -25,24 +25,37 @@ PostgreSQL adapter that realizes `TestCaseRepository`.
 
 ## 2. Attribute design
 
-No attributes are specified for this classifier in the DCD.
+| Name | Data type | Visibility | Scope | Default value | Description |
+|---|---|---|---|---|---|
+| `db` | `PostgresDB` | Private | Instance | — | Pooled PostgreSQL database used for test-case metadata and set transactions. |
 
 ## 3. Operation design
 
-No operations are specified for this classifier in the DCD.
+| Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
+|---|---|---|---|---|
+| `FindTestCase(ctx: context.Context, id: TestCaseID)` | `(*TestCase, error)` | Public | Instance | Loads one test case. |
+| `ReadTestCaseSet(ctx: context.Context, problemID: ProblemID)` | `(*TestCaseSet, error)` | Public | Instance | Loads ordered cases and set version. |
+| `ListTestCaseMetadata(ctx: context.Context, problemID: ProblemID)` | `([]TestCaseMetadata, error)` | Public | Instance | Lists ordered metadata. |
+| `SaveTestCase(ctx: context.Context, testCase: *TestCase)` | `error` | Public | Instance | Inserts metadata and references. |
+| `UpdateTestCase(ctx: context.Context, testCase: *TestCase, expectedVersion: int)` | `error` | Public | Instance | Version-checked metadata update. |
+| `DeleteAndCompactTestCases(ctx: context.Context, problemID: ProblemID, testCaseID: TestCaseID)` | `error` | Public | Instance | Deletes and compacts ordinals. |
+| `SaveTestCaseOrder(ctx: context.Context, problemID: ProblemID, orderedIDs: []TestCaseID, expectedSetVersion: int)` | `error` | Public | Instance | Persists complete order. |
+| `SaveTestCaseType(ctx: context.Context, id: TestCaseID, testCaseType: TestCaseType, expectedVersion: int)` | `error` | Public | Instance | Updates type with optimistic concurrency. |
+| `ReadTestCaseType(ctx: context.Context, id: TestCaseID)` | `(TestCaseType, error)` | Public | Instance | Reads test-case type. |
+| `ReadTestCaseSetVersion(ctx: context.Context, problemID: ProblemID)` | `(int, error)` | Public | Instance | Reads set version. |
 
 ## 4. Parameter design
 
-No operations are specified, so there are no parameters.
+All operations receive `ctx: context.Context`; all remaining parameters are the exact DCD signature parameters. No protected file content is read.
 
 ## 5. Exception
 
-None identified in the referenced sequence diagrams.
+See [SD-PERS-TestCase](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-TestCase.md) for read, mutation, conflict, constraint, and `ERR-SYS-003` paths.
 
 ## 6. Method
 
-No methods are specified for this classifier in the DCD.
+Uses `db` with set-lock and version predicates. Create/update/delete/reorder/type mutations keep the test-case set and affected ordinals atomic. See [TestCasePostgresRepository](../../SubsystemDesign/PersistenceSubsystem/Specification/TestCasePostgresRepository.md).
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+[SD-PERS-TestCase](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-TestCase.md)

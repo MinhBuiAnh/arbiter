@@ -25,24 +25,38 @@ PostgreSQL adapter that realizes `ProblemStore`.
 
 ## 2. Attribute design
 
-No attributes are specified for this classifier in the DCD.
+| Name | Data type | Visibility | Scope | Default value | Description |
+|---|---|---|---|---|---|
+| `db` | `PostgresDB` | Private | Instance | — | Pooled PostgreSQL database used for problem and collection operations. |
 
 ## 3. Operation design
 
-No operations are specified for this classifier in the DCD.
+| Name (signature without return type) | Return type(s) | Visibility | Scope | Description |
+|---|---|---|---|---|
+| `FindProblem(ctx: context.Context, id: ProblemID)` | `(*Problem, error)` | Public | Instance | Loads a problem aggregate. |
+| `SaveProblem(ctx: context.Context, problem: *Problem)` | `error` | Public | Instance | Inserts problem and collections atomically. |
+| `UpdateProblem(ctx: context.Context, problem: *Problem, expectedVersion: int)` | `error` | Public | Instance | Performs a version-checked update. |
+| `SaveProblemState(ctx: context.Context, id: ProblemID, state: LifecycleStatus, expectedVersion: int)` | `error` | Public | Instance | Updates lifecycle state. |
+| `SavePublicationState(ctx: context.Context, id: ProblemID, state: PublicationStatus, expectedVersion: int)` | `error` | Public | Instance | Updates publication state. |
+| `ReadProblemState(ctx: context.Context, id: ProblemID)` | `(*ProblemState, error)` | Public | Instance | Reads problem state and version. |
+| `ListPublishedProblems(ctx: context.Context, query: ProblemQuery)` | `(PageResult[Problem], error)` | Public | Instance | Lists published problems. |
+| `SearchPublishedProblems(ctx: context.Context, query: ProblemQuery)` | `(PageResult[Problem], error)` | Public | Instance | Searches published problems. |
+| `ReadPublicProblem(ctx: context.Context, id: ProblemID)` | `(*ProblemDetails, error)` | Public | Instance | Reads public problem details. |
+| `ReadProblemForSubmission(ctx: context.Context, id: ProblemID)` | `(*ProblemSubmissionContext, error)` | Public | Instance | Reads submission validation context. |
+| `ReadPublicStatistics(ctx: context.Context, id: ProblemID)` | `(PublicStatistics, error)` | Public | Instance | Reads derived public statistics. |
 
 ## 4. Parameter design
 
-No operations are specified, so there are no parameters.
+All operations receive `ctx: context.Context`; operation parameters are the exact DCD signature parameters. The spec returns no private SQL or protected test-case content.
 
 ## 5. Exception
 
-None identified in the referenced sequence diagrams.
+See [SD-PERS-Problem](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Problem.md) for read, state, transaction, conflict, and `ERR-SYS-003` paths.
 
 ## 6. Method
 
-No methods are specified for this classifier in the DCD.
+Uses `db` for bounded reads and transactions; problem, tags, languages, and state changes commit atomically where grouped. Version predicates detect stale writes. See [ProblemPostgresStore](../../SubsystemDesign/PersistenceSubsystem/Specification/ProblemPostgresStore.md).
 
 ## 7. Other diagrams
 
-None required. The design class diagram and the referenced sequence diagrams fully explain this classifier.
+[SD-PERS-Problem](../../SubsystemDesign/PersistenceSubsystem/Diagram/SD-PERS-Problem.md)
