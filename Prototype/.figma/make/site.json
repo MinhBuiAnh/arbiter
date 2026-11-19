@@ -1,0 +1,10 @@
+{
+  "description": "Practice coding challenges, write and test solutions, and track progress with an interactive platform for developers preparing for technical interviews.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
