@@ -6,7 +6,7 @@
 
 ## 1. Purpose and Scope
 
-This ruleset defines the visual design language of Arbiter, a reusable token system for color, typography, spacing, surfaces, states, and components. It applies to every screen in the screen inventory and to every shared component used by those screens.
+This ruleset defines the visual design language of Arbiter, a reusable token system for color, typography, spacing, surfaces, states, and components. It applies to every screen in the screen inventory and to every shared component used by those screens. Section 12 binds each content screen to a reference image, a function list, and a field-attribute list.
 
 The ruleset governs presentation, not behavior. A visual treatment must never hide a required status, weaken a warning, or make a prohibited data exposure possible.
 
